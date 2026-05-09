@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
   ScrollView,
@@ -16,6 +17,8 @@ type Workout = {
   calories: number;
 };
 
+const STORAGE_KEY = 'workout_history';
+
 export default function HomeScreen() {
   const [activityType, setActivityType] = useState<ActivityType>('run');
   const [running, setRunning] = useState(false);
@@ -23,6 +26,37 @@ export default function HomeScreen() {
   const [steps, setSteps] = useState(0);
   const [calories, setCalories] = useState(0);
   const [history, setHistory] = useState<Workout[]>([]);
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  useEffect(() => {
+    saveHistory();
+  }, [history]);
+
+  const loadHistory = async () => {
+    try {
+      const savedHistory = await AsyncStorage.getItem(STORAGE_KEY);
+
+      if (savedHistory) {
+        setHistory(JSON.parse(savedHistory));
+      }
+    } catch (error) {
+      console.log('Error loading history:', error);
+    }
+  };
+
+  const saveHistory = async () => {
+    try {
+      await AsyncStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(history)
+      );
+    } catch (error) {
+      console.log('Error saving history:', error);
+    }
+  };
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | undefined;
@@ -79,6 +113,11 @@ export default function HomeScreen() {
     setCalories(0);
   };
 
+  const clearHistory = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    setHistory([]);
+  };
+
   const activityLabel = activityType === 'run' ? '🏃 Run' : '🚶 Walk';
 
   const totalRuns = history.filter((item) => item.type === 'run').length;
@@ -92,9 +131,19 @@ export default function HomeScreen() {
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Total Stats</Text>
-        <Text style={styles.summaryText}>🏃 Runs: {totalRuns}</Text>
-        <Text style={styles.summaryText}>🚶 Walks: {totalWalks}</Text>
-        <Text style={styles.summaryText}>👣 Steps: {totalSteps}</Text>
+
+        <Text style={styles.summaryText}>
+          🏃 Runs: {totalRuns}
+        </Text>
+
+        <Text style={styles.summaryText}>
+          🚶 Walks: {totalWalks}
+        </Text>
+
+        <Text style={styles.summaryText}>
+          👣 Steps: {totalSteps}
+        </Text>
+
         <Text style={styles.summaryText}>
           🔥 Calories: {Math.round(totalCalories)}
         </Text>
@@ -108,7 +157,9 @@ export default function HomeScreen() {
           ]}
           onPress={() => setActivityType('run')}
           disabled={running}>
-          <Text style={styles.activityButtonText}>🏃 RUN</Text>
+          <Text style={styles.activityButtonText}>
+            🏃 RUN
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -118,23 +169,39 @@ export default function HomeScreen() {
           ]}
           onPress={() => setActivityType('walk')}
           disabled={running}>
-          <Text style={styles.activityButtonText}>🚶 WALK</Text>
+          <Text style={styles.activityButtonText}>
+            🚶 WALK
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.currentActivity}>{activityLabel}</Text>
+      <Text style={styles.currentActivity}>
+        {activityLabel}
+      </Text>
 
-      <Text style={styles.timer}>{formatTime()}</Text>
+      <Text style={styles.timer}>
+        {formatTime()}
+      </Text>
 
       <View style={styles.statsContainer}>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>👣 Steps</Text>
-          <Text style={styles.cardValue}>{steps}</Text>
+          <Text style={styles.cardTitle}>
+            👣 Steps
+          </Text>
+
+          <Text style={styles.cardValue}>
+            {steps}
+          </Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>🔥 Calories</Text>
-          <Text style={styles.cardValue}>{Math.round(calories)}</Text>
+          <Text style={styles.cardTitle}>
+            🔥 Calories
+          </Text>
+
+          <Text style={styles.cardValue}>
+            {Math.round(calories)}
+          </Text>
         </View>
       </View>
 
@@ -142,27 +209,56 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.startButton}
           onPress={() => setRunning(true)}>
-          <Text style={styles.buttonText}>START</Text>
+          <Text style={styles.buttonText}>
+            START
+          </Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity style={styles.stopButton} onPress={stopWorkout}>
-          <Text style={styles.buttonText}>STOP</Text>
+        <TouchableOpacity
+          style={styles.stopButton}
+          onPress={stopWorkout}>
+          <Text style={styles.buttonText}>
+            STOP
+          </Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity style={styles.resetButton} onPress={resetWorkout}>
-        <Text style={styles.resetText}>RESET</Text>
+      <TouchableOpacity
+        style={styles.resetButton}
+        onPress={resetWorkout}>
+        <Text style={styles.resetText}>
+          RESET CURRENT
+        </Text>
       </TouchableOpacity>
 
-      <Text style={styles.historyTitle}>Activity History</Text>
+      <TouchableOpacity
+        style={styles.clearButton}
+        onPress={clearHistory}>
+        <Text style={styles.clearButtonText}>
+          CLEAR HISTORY
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={styles.historyTitle}>
+        Activity History
+      </Text>
 
       {history.map((workout, index) => (
         <View key={index} style={styles.historyCard}>
           <Text style={styles.historyText}>
-            {workout.type === 'run' ? '🏃 Run' : '🚶 Walk'}
+            {workout.type === 'run'
+              ? '🏃 Run'
+              : '🚶 Walk'}
           </Text>
-          <Text style={styles.historyText}>⏱ {workout.time}</Text>
-          <Text style={styles.historyText}>👣 {workout.steps} steps</Text>
+
+          <Text style={styles.historyText}>
+            ⏱ {workout.time}
+          </Text>
+
+          <Text style={styles.historyText}>
+            👣 {workout.steps} steps
+          </Text>
+
           <Text style={styles.historyText}>
             🔥 {Math.round(workout.calories)} cal
           </Text>
@@ -297,12 +393,26 @@ const styles = StyleSheet.create({
 
   resetButton: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 15,
   },
 
   resetText: {
     color: '#999',
     fontSize: 18,
+  },
+
+  clearButton: {
+    backgroundColor: '#333',
+    padding: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+
+  clearButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 
   historyTitle: {
