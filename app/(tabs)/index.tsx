@@ -7,33 +7,46 @@ import {
   View,
 } from 'react-native';
 
+type ActivityType = 'run' | 'walk';
+
 type Workout = {
+  type: ActivityType;
   time: string;
   steps: number;
   calories: number;
 };
 
 export default function HomeScreen() {
+  const [activityType, setActivityType] = useState<ActivityType>('run');
   const [running, setRunning] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [steps, setSteps] = useState(0);
   const [calories, setCalories] = useState(0);
-
   const [history, setHistory] = useState<Workout[]>([]);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
 
     if (running) {
       interval = setInterval(() => {
         setSeconds((prev) => prev + 1);
-        setSteps((prev) => prev + 3);
-        setCalories((prev) => prev + 1);
+
+        if (activityType === 'run') {
+          setSteps((prev) => prev + 3);
+          setCalories((prev) => prev + 1);
+        } else {
+          setSteps((prev) => prev + 2);
+          setCalories((prev) => prev + 0.5);
+        }
       }, 1000);
     }
 
-    return () => clearInterval(interval);
-  }, [running]);
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [running, activityType]);
 
   const formatTime = () => {
     const mins = Math.floor(seconds / 60);
@@ -46,12 +59,17 @@ export default function HomeScreen() {
     setRunning(false);
 
     const newWorkout = {
+      type: activityType,
       time: formatTime(),
       steps,
       calories,
     };
 
     setHistory((prev) => [newWorkout, ...prev]);
+
+    setSeconds(0);
+    setSteps(0);
+    setCalories(0);
   };
 
   const resetWorkout = () => {
@@ -61,9 +79,50 @@ export default function HomeScreen() {
     setCalories(0);
   };
 
+  const activityLabel = activityType === 'run' ? '🏃 Run' : '🚶 Walk';
+
+  const totalRuns = history.filter((item) => item.type === 'run').length;
+  const totalWalks = history.filter((item) => item.type === 'walk').length;
+  const totalSteps = history.reduce((sum, item) => sum + item.steps, 0);
+  const totalCalories = history.reduce((sum, item) => sum + item.calories, 0);
+
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Run Tracker</Text>
+      <Text style={styles.title}>Walk & Run Tracker</Text>
+
+      <View style={styles.summaryCard}>
+        <Text style={styles.summaryTitle}>Total Stats</Text>
+        <Text style={styles.summaryText}>🏃 Runs: {totalRuns}</Text>
+        <Text style={styles.summaryText}>🚶 Walks: {totalWalks}</Text>
+        <Text style={styles.summaryText}>👣 Steps: {totalSteps}</Text>
+        <Text style={styles.summaryText}>
+          🔥 Calories: {Math.round(totalCalories)}
+        </Text>
+      </View>
+
+      <View style={styles.activitySelector}>
+        <TouchableOpacity
+          style={[
+            styles.activityButton,
+            activityType === 'run' && styles.activeButton,
+          ]}
+          onPress={() => setActivityType('run')}
+          disabled={running}>
+          <Text style={styles.activityButtonText}>🏃 RUN</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.activityButton,
+            activityType === 'walk' && styles.activeButton,
+          ]}
+          onPress={() => setActivityType('walk')}
+          disabled={running}>
+          <Text style={styles.activityButtonText}>🚶 WALK</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.currentActivity}>{activityLabel}</Text>
 
       <Text style={styles.timer}>{formatTime()}</Text>
 
@@ -75,7 +134,7 @@ export default function HomeScreen() {
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>🔥 Calories</Text>
-          <Text style={styles.cardValue}>{calories}</Text>
+          <Text style={styles.cardValue}>{Math.round(calories)}</Text>
         </View>
       </View>
 
@@ -83,36 +142,29 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.startButton}
           onPress={() => setRunning(true)}>
-          <Text style={styles.buttonText}>START RUN</Text>
+          <Text style={styles.buttonText}>START</Text>
         </TouchableOpacity>
       ) : (
-        <TouchableOpacity
-          style={styles.stopButton}
-          onPress={stopWorkout}>
-          <Text style={styles.buttonText}>STOP RUN</Text>
+        <TouchableOpacity style={styles.stopButton} onPress={stopWorkout}>
+          <Text style={styles.buttonText}>STOP</Text>
         </TouchableOpacity>
       )}
 
-      <TouchableOpacity
-        style={styles.resetButton}
-        onPress={resetWorkout}>
+      <TouchableOpacity style={styles.resetButton} onPress={resetWorkout}>
         <Text style={styles.resetText}>RESET</Text>
       </TouchableOpacity>
 
-      <Text style={styles.historyTitle}>Workout History</Text>
+      <Text style={styles.historyTitle}>Activity History</Text>
 
       {history.map((workout, index) => (
         <View key={index} style={styles.historyCard}>
           <Text style={styles.historyText}>
-            ⏱ {workout.time}
+            {workout.type === 'run' ? '🏃 Run' : '🚶 Walk'}
           </Text>
-
+          <Text style={styles.historyText}>⏱ {workout.time}</Text>
+          <Text style={styles.historyText}>👣 {workout.steps} steps</Text>
           <Text style={styles.historyText}>
-            👣 {workout.steps} steps
-          </Text>
-
-          <Text style={styles.historyText}>
-            🔥 {workout.calories} cal
+            🔥 {Math.round(workout.calories)} cal
           </Text>
         </View>
       ))}
@@ -124,16 +176,67 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0f0f',
-    paddingTop: 80,
+    paddingTop: 70,
     paddingHorizontal: 20,
   },
 
   title: {
     color: 'white',
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: 25,
+  },
+
+  summaryCard: {
+    backgroundColor: '#161616',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 25,
+  },
+
+  summaryTitle: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+
+  summaryText: {
+    color: '#ddd',
+    fontSize: 17,
+    marginBottom: 5,
+  },
+
+  activitySelector: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 25,
+  },
+
+  activityButton: {
+    flex: 1,
+    backgroundColor: '#1c1c1c',
+    padding: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+
+  activeButton: {
+    backgroundColor: '#00cc66',
+  },
+
+  activityButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  currentActivity: {
+    color: '#aaa',
+    fontSize: 22,
+    textAlign: 'center',
+    marginBottom: 15,
   },
 
   timer: {
@@ -141,13 +244,13 @@ const styles = StyleSheet.create({
     fontSize: 72,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: 35,
   },
 
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 40,
+    marginBottom: 35,
   },
 
   card: {
