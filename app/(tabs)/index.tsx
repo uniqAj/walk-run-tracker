@@ -1,98 +1,224 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+type Workout = {
+  time: string;
+  steps: number;
+  calories: number;
+};
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [running, setRunning] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [calories, setCalories] = useState(0);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  const [history, setHistory] = useState<Workout[]>([]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (running) {
+      interval = setInterval(() => {
+        setSeconds((prev) => prev + 1);
+        setSteps((prev) => prev + 3);
+        setCalories((prev) => prev + 1);
+      }, 1000);
+    }
+
+    return () => clearInterval(interval);
+  }, [running]);
+
+  const formatTime = () => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const stopWorkout = () => {
+    setRunning(false);
+
+    const newWorkout = {
+      time: formatTime(),
+      steps,
+      calories,
+    };
+
+    setHistory((prev) => [newWorkout, ...prev]);
+  };
+
+  const resetWorkout = () => {
+    setRunning(false);
+    setSeconds(0);
+    setSteps(0);
+    setCalories(0);
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Run Tracker</Text>
+
+      <Text style={styles.timer}>{formatTime()}</Text>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>👣 Steps</Text>
+          <Text style={styles.cardValue}>{steps}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🔥 Calories</Text>
+          <Text style={styles.cardValue}>{calories}</Text>
+        </View>
+      </View>
+
+      {!running ? (
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={() => setRunning(true)}>
+          <Text style={styles.buttonText}>START RUN</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.stopButton}
+          onPress={stopWorkout}>
+          <Text style={styles.buttonText}>STOP RUN</Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        style={styles.resetButton}
+        onPress={resetWorkout}>
+        <Text style={styles.resetText}>RESET</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.historyTitle}>Workout History</Text>
+
+      {history.map((workout, index) => (
+        <View key={index} style={styles.historyCard}>
+          <Text style={styles.historyText}>
+            ⏱ {workout.time}
+          </Text>
+
+          <Text style={styles.historyText}>
+            👣 {workout.steps} steps
+          </Text>
+
+          <Text style={styles.historyText}>
+            🔥 {workout.calories} cal
+          </Text>
+        </View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#0f0f0f',
+    paddingTop: 80,
+    paddingHorizontal: 20,
+  },
+
+  title: {
+    color: 'white',
+    fontSize: 34,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
+  },
+
+  timer: {
+    color: '#00ff99',
+    fontSize: 72,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 40,
+  },
+
+  statsContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 40,
+  },
+
+  card: {
+    backgroundColor: '#1c1c1c',
+    width: '48%',
+    borderRadius: 20,
+    padding: 20,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  cardTitle: {
+    color: '#aaa',
+    fontSize: 18,
+    marginBottom: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  cardValue: {
+    color: 'white',
+    fontSize: 30,
+    fontWeight: 'bold',
+  },
+
+  startButton: {
+    backgroundColor: '#00cc66',
+    padding: 18,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  stopButton: {
+    backgroundColor: '#ff4444',
+    padding: 18,
+    borderRadius: 20,
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+
+  buttonText: {
+    color: 'white',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+
+  resetButton: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+
+  resetText: {
+    color: '#999',
+    fontSize: 18,
+  },
+
+  historyTitle: {
+    color: 'white',
+    fontSize: 26,
+    fontWeight: 'bold',
+    marginBottom: 20,
+  },
+
+  historyCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 15,
+  },
+
+  historyText: {
+    color: 'white',
+    fontSize: 18,
+    marginBottom: 6,
   },
 });
